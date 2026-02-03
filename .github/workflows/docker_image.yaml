@@ -34,7 +34,7 @@ jobs:
         run: docker load < result
 
       - name: Tag Docker image with timestamp
-        run: docker tag dotkinder:latest ${{ vars.DOCKER_USERNAME }}/dotkinder:${{ env.TAG }}
+        run: docker tag quicksearch-rs:latest ${{ vars.DOCKER_USERNAME }}/quicksearch-rs:${{ env.TAG }}
 
       - name: Push Docker image
-        run: docker push ${{ vars.DOCKER_USERNAME }}/dotkinder:${{ env.TAG }}
+        run: docker push ${{ vars.DOCKER_USERNAME }}/quicksearch-rs:${{ env.TAG }}
