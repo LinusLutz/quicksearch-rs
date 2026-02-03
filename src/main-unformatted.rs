@@ -1,0 +1,98 @@
+use std::net::SocketAddr;
+use axum::Router;
+use axum::extract::{ConnectInfo, Path};
+use axum::response::Redirect;
+use axum::routing::get;
+
+async fn redirect_query(Path(query):Path<String>,redirect_url: &str)->Redirect
+{
+Redirect::to(&redirect_url.replace("*query*", &query))
+}
+async fn redirect(redirect_url: &str)->Redirect
+{
+Redirect::to(&redirect_url)
+}
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+
+    println!("Listening on http://{}", addr);
+
+let app = Router::new()
+    .route("/ip", get(|ConnectInfo(addr): ConnectInfo<SocketAddr>| async move { addr.ip().to_string() }))
+
+    .route("/ula.ext", get(redirect("https://simpledns.plus/private-ipv6").await))
+    .route("/mensa", get(redirect("http://www.stwno.de/infomax/daten-extern/html/speiseplaene.php?einrichtung=UNI-P").await))
+    .route("/strings.bash", get(redirect("http://tldp.org/LDP/abs/html/string-manipulation.html").await))
+    .route("/bash-strings", get(redirect("http://tldp.org/LDP/abs/html/string-manipulation.html").await))
+    .route("/strings.sh", get( redirect("https://pubs.opengroup.org/onlinepubs/9699919799.2008edition/utilities/V3_chap02.html#tag_18_06_02").await))
+    .route("/fp", get( redirect("http://i3.kym-cdn.com/photos/images/original/000/001/582/picard-facepalm.jpg").await))
+    .route("/randname", get( redirect("http://www.behindthename.com/random/random.php?number=1&gender=u&surname=&nodiminutives=yes&all=yes").await))
+
+    .route("/i/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.google.com/search?q=*query*&tbm=isch")))
+    .route("/gi/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.google.com/search?q=*query*&tbm=isch")))
+
+    .route("/gv/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.google.com/search?q=*query*&tbm=vid")))
+    .route("/v/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.google.com/search?q=*query*&tbm=vid")))
+
+    .route("/google/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.google.com/search?q=*query*")))
+    .route("/g/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.google.com/search?q=*query*")))
+
+    .route("/nixo/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://search.nixos.org/options?query=*query*")))
+    .route("/nixp/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://search.nixos.org/packages?query=*query*")))
+
+    .route("/inwx/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.inwx.de/de/domain/check#search=*query*#region=DEFAULT#rc=rc1")))
+    .route("/ovh/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.ovh.de/cgi-bin/newOrder/order.cgi?domain_domainChooser_domain=*query*")))
+    .route("/tineye/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://tineye.com/search?url=*query*")))
+    
+    .route("/madison/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://qa.debian.org/madison.php?table=all&g=on&package=*query*")))
+    .route("/deb/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://qa.debian.org/madison.php?table=debian&g=on&package=*query")))
+    .route("/ubu/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://qa.debian.org/madison.php?table=ubuntu&g=on&package=*query*")))
+    .route("/dpkg/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://packages.debian.org/search?keywords=*query*")))
+    .route("/upkg/{*wildcard}", get(|e:Path<_>| redirect_query(e,"http://packages.ubuntu.com/search?keywords=*query*")))
+    .route("/apkg/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.archlinux.org/packages/?q=*query*")))
+    .route("/aur/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://aur.archlinux.org/packages/?K=*query*")))
+    .route("/repo/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://repology.org/projects/?search=*query*")))
+    //todo: repo blank
+
+    .route("/fport/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.freshports.org/search.php?num=20&query=*query*")))
+    .route("/fports/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.freshports.org/search.php?num=20&query=*query*")))
+    .route("/freshports/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.freshports.org/search.php?num=20&query=*query*")))
+
+    .route("/gpkg/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://packages.gentoo.org/packages/search?q=*query*")))
+    .route("/eix/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://packages.gentoo.org/packages/search?q=*query*")))
+    
+    .route("/denic/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.denic.de/webwhois-web20/?domain=*query*")))
+    .route("/ssll/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.ssllabs.com/ssltest/analyze.html?d=*query*&hideResults=on&latest")))
+    .route("/bgp/{*wildcard}", get(|e:Path<_>| redirect_query(e,"http://bgp.he.net/search?commit=Search&search[search]=*query*")))
+    .route("/tld/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://tld-list.com/tld/*query*")))
+    .route("/woa/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.wolframalpha.com/input/?i=*query*")))
+
+    .route("/dcc/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://www.dict.cc/?s=*query*")))
+    
+    .route("/gif/{*wildcard}", get(|e:Path<_>| redirect_query(e,"http://giphy.com/search/*query*")))
+
+    .route("/ukcomp/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://beta.companieshouse.gov.uk/search?q=*query*")))
+
+    .route("/uci/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://apps.timwhitlock.info/unicode/inspect?s=*query*")))
+    .route("/unicode/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://apps.timwhitlock.info/unicode/inspect?s=*query*")))
+    
+    .route("/ucs/{*wildcard}", get(|e:Path<_>| redirect_query(e,"http://www.fileformat.info/info/unicode/char/search.htm?q=*query*&preview=entity")))
+    .route("/sunicode/{*wildcard}", get(|e:Path<_>| redirect_query(e,"http://www.fileformat.info/info/unicode/char/search.htm?q=*query*&preview=entity")))
+
+    .route("/wiki/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://en.wikipedia.org/w/index.php?search=*query*")))
+    .route("/enwiki/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://en.wikipedia.org/w/index.php?search=*query*")))
+    .route("/dewiki/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://de.wikipedia.org/w/index.php?search=*query*")))
+//todo: rfc
+    .route("/ark/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://ark.intel.com/content/www/us/en/ark/search.html?q=%s")))
+//todo: blank posix
+//todo: posix
+
+    .route("/sunicode/{*wildcard}", get(|e:Path<_>| redirect_query(e,"http://www.fileformat.info/info/unicode/char/search.htm?q=*query*&preview=entity")))
+
+    .route("/ansible/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://docs.ansible.com/projects/ansible/latest/search.html?q=*query*&check_keywords=yes&area=default")));
+
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>()).await.unwrap();
+Ok(())
+}

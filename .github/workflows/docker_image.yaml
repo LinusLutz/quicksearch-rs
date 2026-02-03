@@ -1,0 +1,40 @@
+name: Build the Docker Image
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-amd64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-24.11
+          extra_nix_config: experimental-features = nix-command flakes
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        run: nix build .#images.x86_64-linux.default
+
+      - name: Set timestamp tag
+        run: echo "TAG=$(date +%s)" >> $GITHUB_ENV
+
+      - name: Load Docker image
+        run: docker load < result
+
+      - name: Tag Docker image with timestamp
+        run: docker tag dotkinder:latest ${{ vars.DOCKER_USERNAME }}/dotkinder:${{ env.TAG }}
+
+      - name: Push Docker image
+        run: docker push ${{ vars.DOCKER_USERNAME }}/dotkinder:${{ env.TAG }}
