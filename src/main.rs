@@ -10,6 +10,10 @@ async fn redirect_query(Path(query): Path<String>, redirect_url: &str) -> Redire
 async fn redirect(redirect_url: &str) -> Redirect {
     Redirect::to(&redirect_url)
 }
+//async fn trains(query: String)->String {
+//    let UIC_COUNTRY_CODES = [("FI", 10), ("RU", 20),("BY", 21),("UA", 22),("MD", 23),("LT", 24),("LV", 25),("EE", 26),("KZ", 27),("GE", 28),("UZ", 29),("KP", 30),("MN", 31),("VN", 32),("CN", 33),("LA", 34),("CU", 40),("AL", 41),("JP", 42),("BA", 44),("BA", 49),("BA", 50),("PL", 51),("BG", 52),("RO", 53),("CZ", 54),("HU", 55),("SK", 56),("AZ", 57),("AM", 58),("KG", 59),("IE", 60),("KR", 61),("ME", 62),("MK", 65),("TJ", 66),("TM", 67),("AF", 68),("GB", 70),("ES", 71),("RS", 72),("GR", 73),("SE", 74),("TR", 75),("NO", 76),("HR", 78),("SI", 79),("DE", 80),("AT", 81),("LU", 82),("IT", 83),("NL", 84),("CH", 85),("DK", 86),("FR", 87),("BE", 88),("TZ", 89),("EG", 90),("TN", 91),("DZ", 92),("MA", 93),("PT", 94),("IL", 95),("IR", 96),("SY", 97),("LB", 98),("IQ", 99)];
+//
+//}
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -18,9 +22,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let app = Router::new()
     .route("/ip", get(|ConnectInfo(addr): ConnectInfo<SocketAddr>| async move { addr.ip().to_string() }))
-
+    
     //..
-    //
+    //todo: root
+
     //todo: urlencode/urldecode
     .route("/ula.ext", get(redirect("https://simpledns.plus/private-ipv6").await))
     .route("/mensa", get(redirect("http://www.stwno.de/infomax/daten-extern/html/speiseplaene.php?einrichtung=UNI-P").await))

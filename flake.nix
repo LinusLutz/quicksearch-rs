@@ -46,7 +46,7 @@
           ];
         };
         images.default = pkgs.dockerTools.buildImage {
-          name = "dotkinder";
+          name = "quicksearch-rs";
           tag = "latest";
           copyToRoot = pkgs.buildEnv {
             name = "image-root";
