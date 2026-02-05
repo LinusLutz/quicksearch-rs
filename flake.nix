@@ -13,28 +13,40 @@
     nixpkgs,
     rust-overlay,
   }:
-    flake-utils.lib.eachDefaultSystem (
-      system: let
-        pkgs = (import nixpkgs) {
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = import nixpkgs {
           inherit system;
-          overlays = [rust-overlay.overlays.default];
+          overlays = [ rust-overlay.overlays.default ];
         };
+
         naersk' = pkgs.callPackage naersk {};
-        # For `nix build` & `nix run`:
-        defaultPackage = naersk'.buildPackage {
+
+        quicksearch-rs = naersk'.buildPackage {
+          pname = "quicksearch-rs";
+          version = "0.1.0";
           src = ./.;
-          buildInputs = [pkgs.sqlite];
+          buildInputs = [ pkgs.sqlite ];
         };
-      in {
-        formatter = nixpkgs.legacyPackages.${system}.alejandra;
-        packages.default = defaultPackage;
+      in
+      {
+        formatter = pkgs.alejandra;
+
+        packages = {
+          quicksearch-rs = quicksearch-rs;
+          default = quicksearch-rs;
+        };
+
         devShell = pkgs.mkShell {
           buildInputs = [
             (pkgs.rust-bin.stable.latest.default.override {
-              extensions = ["rust-src"];
+              extensions = [ "rust-src" ];
             })
           ];
-          RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+
+          RUST_SRC_PATH =
+            "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+
           nativeBuildInputs = with pkgs; [
             rust-bin.beta.latest.default
             cargo
@@ -45,22 +57,34 @@
             pkg-config
           ];
         };
+
         images.default = pkgs.dockerTools.buildImage {
           name = "quicksearch-rs";
           tag = "latest";
+
           copyToRoot = pkgs.buildEnv {
             name = "image-root";
             paths = [
-              defaultPackage
+              quicksearch-rs
               pkgs.bash
               pkgs.curl
               pkgs.cacert
               pkgs.coreutils
             ];
-            pathsToLink = ["/bin"];
+            pathsToLink = [ "/bin" ];
           };
-          config.Cmd = ["quicksearch-rs"];
+          config.Env = [
+            "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+          ];
+          config.Cmd = [ "quicksearch-rs" ];
         };
       }
-    );
+    )
+    // {
+      # Optional but very useful: expose an overlay
+      overlays.default = final: prev: {
+        quicksearch-rs =
+          self.packages.${final.system}.quicksearch-rs;
+      };
+    };
 }

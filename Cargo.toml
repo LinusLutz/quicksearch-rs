@@ -7,3 +7,6 @@ edition = "2024"
 bytes = "1.10.1"
 tokio = { version = "1.47.1", features = ["rt-multi-thread","net", "macros"] }
 axum = "0.8.8"
+base64 = "0.22.1"
+urlencoding = "2.1.3"
+hickory-resolver = "0.25.2"
