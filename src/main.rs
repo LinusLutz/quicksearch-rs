@@ -1,7 +1,8 @@
 use axum::Router;
-use axum::extract::{ConnectInfo, Path};
+use axum::extract::Path;
 use axum::response::Redirect;
 use axum::routing::get;
+use axum_client_ip::ClientIp;
 use base64::prelude::BASE64_STANDARD;
 use hickory_resolver::lookup::TxtLookup;
 use hickory_resolver::proto::rr::RData;
@@ -10,6 +11,13 @@ use std::net::IpAddr;
 use std::net::{IpAddr::{V4,V6}, SocketAddr};
 use base64::Engine;
 use hickory_resolver::IntoName;
+use axum_client_ip::ClientIpSource;
+
+#[derive(serde::Deserialize)]
+struct Config {
+    ip_source: ClientIpSource,
+}
+
 
 async fn redirect_query(Path(query): Path<String>, redirect_url: &str) -> Redirect {
     Redirect::to(&redirect_url.replace("*query*", &query))
@@ -42,14 +50,15 @@ result.join("\n")
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let config: Config = envy::from_env().unwrap();
 
     println!("Listening on http://{}", addr);
     let app = Router::new()
-    .route("/ip", get(|ConnectInfo(addr): ConnectInfo<SocketAddr>| async move { addr.ip().to_string() }))
-    .route("/ipi", get(|ConnectInfo(addr): ConnectInfo<SocketAddr>| ip_data(addr.ip())))
+    .route("/ip", get(|ClientIp(ip)| async move { ip.to_string() }))
+    .route("/ipi", get(|ClientIp(ip)| ip_data(ip)))
     .route("/ipi/{*wildcard}", get(|Path(e):Path<String> |async move {if let Some(ip)=e.to_ip(){ip_data(ip).await}else{"No valid ip given".into()}}))
     .route("/be/{*wildcard}", get(|Path(e):Path<String> |async move {BASE64_STANDARD.encode(e)} ))
-    .route("/bd/{*wildcard}", get(|Path(e):Path<String> |async move {BASE64_STANDARD.decode(e).unwrap_or("input is no valid base 64".into())} ))
+    .route("/bd/{*wildcard}", get(|Path(e):Path<String> |async move {BASE64_STANDARD.decode(e).map_or("input is no valid base 64".to_string(),|e|String::from_utf8(e).unwrap())} ))
 
     .route("/ue/{*wildcard}", get(|Path(e):Path<String> |async move {urlencoding::encode(&e).into_owned()}))
     .route("/ud/{*wildcard}", get(|Path(e):Path<String> |async move {urlencoding::decode(&e).unwrap_or("cant decode url".into()).into_owned()}))
@@ -125,8 +134,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 //todo: posix
 //todo: dhl
 
-    .route("/ansible/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://docs.ansible.com/projects/ansible/latest/search.html?q=*query*&check_keywords=yes&area=default")));
-
+    .route("/ansible/{*wildcard}", get(|e:Path<_>| redirect_query(e,"https://docs.ansible.com/projects/ansible/latest/search.html?q=*query*&check_keywords=yes&area=default")))
+    .layer(config.ip_source.into_extension());
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(
         listener,
