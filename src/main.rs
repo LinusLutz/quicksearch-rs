@@ -28,11 +28,30 @@ enum Mapping {
     Redirect(String),//url //ToDo: redirect base field for standart without query
     Fn(fn() -> axum::routing::MethodRouter)
 }
-
+async fn sort_urls(base_fn: Vec<(String,Vec<String>,usize)>,longest_name: usize,is_some: &Vec<usize>,is_redirect: &Vec<usize>)->String {
+    let mut return_str=String::new();
+    for i in base_fn{
+    if is_some.contains(&i.2){
+        if is_redirect.contains(&i.2){
+    return_str.push_str(&format!("{:<width$}+ wildcard redirect: {}
+",i.0,i.1.join(" + "),width = longest_name));
+        }else{
+            return_str.push_str(&format!("{:<width$}+ wildcard function: {}
+",i.0,i.1.join(" + "),width = longest_name));
+        }
+    }else {
+        return_str.push_str(&format!("{:<width$}{}
+",i.0,i.1.join(" + "),width = longest_name));
+    }
+}
+return_str
+}
 async fn redirect_query(Path(query): Path<String>, redirect_url: &str) -> Redirect {
     Redirect::to(&redirect_url.replace("*query*", &query))
 }
-
+async fn redirect(redirect_url: &str) -> Redirect {//ToDo: merge into one fn?
+    Redirect::to(&redirect_url)
+}
 //async fn trains(query: String)->String {
 //    let UIC_COUNTRY_CODES = [("FI", 10), ("RU", 20),("BY", 21),("UA", 22),("MD", 23),("LT", 24),("LV", 25),("EE", 26),("KZ", 27),("GE", 28),("UZ", 29),("KP", 30),("MN", 31),("VN", 32),("CN", 33),("LA", 34),("CU", 40),("AL", 41),("JP", 42),("BA", 44),("BA", 49),("BA", 50),("PL", 51),("BG", 52),("RO", 53),("CZ", 54),("HU", 55),("SK", 56),("AZ", 57),("AM", 58),("KG", 59),("IE", 60),("KR", 61),("ME", 62),("MK", 65),("TJ", 66),("TM", 67),("AF", 68),("GB", 70),("ES", 71),("RS", 72),("GR", 73),("SE", 74),("TR", 75),("NO", 76),("HR", 78),("SI", 79),("DE", 80),("AT", 81),("LU", 82),("IT", 83),("NL", 84),("CH", 85),("DK", 86),("FR", 87),("BE", 88),("TZ", 89),("EG", 90),("TN", 91),("DZ", 92),("MA", 93),("PT", 94),("IL", 95),("IR", 96),("SY", 97),("LB", 98),("IQ", 99)];
 //
@@ -147,81 +166,124 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 let mut  longest_name =0;
 for i in url_mappings.iter() {if i.name.len()>longest_name{longest_name=i.name.len()}};//todo: use another method?
 longest_name+=20;
-let mut redirect_wildcard=Vec::new();
-let mut function_wildcard=Vec::new();
-let mut redirect_base=Vec::new();
-let mut function_base=Vec::new();
-for i in url_mappings {
-    let name=i.name;
-    match i.base_mapping{
-        Mapping::Redirect(x)=>{
-            for url in i.urls.iter(){
-                let value = x.clone();
-                if let Some(ref e)=i.mapping&& let Mapping::Redirect(value_url)=e{
+let mut is_redirect=Vec::new();
+let mut is_some=Vec::new();
+let mut base_fn=Vec::new();
+let mut base_redirects=Vec::new();
+for (num,i) in url_mappings.into_iter().enumerate() {
+    if let Some(wildcard_mapping)=&i.mapping{
+        is_some.push(num);
+        match wildcard_mapping {
+            Mapping::Redirect(value_url)=>{
+                    is_redirect.push(num);
+                    for url in i.urls.iter(){
                     let value_url = value_url.clone();
                     let mut wildcard_url=url.clone();
                     wildcard_url.push_str("/{*wildcard}");
-
-                    redirect_wildcard.push((name.clone(),wildcard_url.clone()));
-
                     app=app.route(&wildcard_url,get(async move |e:Path<_>| redirect_query(e,&value_url).await));
-                }else{
-                    redirect_base.push((name.clone(),url.clone()));
-                }
-                app=app.route(url,get(async move |e:Path<_>| redirect_query(e,&value).await));
+                    }
             }
-        }
-         Mapping::Fn(x) =>{
-            for url in i.urls.iter(){
-            if let Some(ref e)=i.mapping&& let Mapping::Fn(value_fn)=e{
-                let value_fn = value_fn.clone();
-                let mut wildcard_url=url.clone();
-                wildcard_url.push_str("/{*wildcard}");
-                
-                function_wildcard.push((name.clone(),wildcard_url.clone()));
-                
-                app=app.route(&wildcard_url,value_fn());
-            }else{
-                    function_base.push((name.clone(),url.clone()));
-            }
-                app=app.route(url,x());
+            Mapping::Fn(value_fn)=>{
+                    for url in i.urls.iter(){
+                    let mut wildcard_url=url.clone();
+                    wildcard_url.push_str("/{*wildcard}");
+                    app=app.route(&wildcard_url,value_fn());
+                    }
             }
         }
     }
+    match i.base_mapping {
+            Mapping::Redirect(value_url)=>{
+                    base_redirects.push((i.name.clone(),i.urls.clone(),num));
+                    for url in i.urls.iter(){
+                    let value_url = value_url.clone();
+                    app=app.route(url,get(redirect(&value_url).await));
+                    }
+            }
+            Mapping::Fn(value_fn)=>{
+                    base_fn.push((i.name.clone(),i.urls.clone(),num));
+                    for url in i.urls.iter(){
+                        app=app.route(url,value_fn());
+                    }
+            }
+        }
+    //let name=i.name;
+    //match i.base_mapping{
+    //    Mapping::Redirect(x)=>{
+    //        for url in i.urls.iter(){
+    //            let value = x.clone();
+    //            if let Some(ref e)=i.mapping&& let Mapping::Redirect(value_url)=e{
+    //                let value_url = value_url.clone();
+    //                let mut wildcard_url=url.clone();
+    //                wildcard_url.push_str("/{*wildcard}");
+//
+    //                redirect_wildcard.push((name.clone(),wildcard_url.clone()));
+//
+    //                app=app.route(&wildcard_url,get(async move |e:Path<_>| redirect_query(e,&value_url).await));
+    //            }else{
+    //                redirect_base.push((name.clone(),url.clone()));
+    //            }
+    //            app=app.route(url,get(async move |e:Path<_>| redirect_query(e,&value).await));
+    //        }
+    //    }
+    //     Mapping::Fn(x) =>{
+    //        for url in i.urls.iter(){
+    //        if let Some(ref e)=i.mapping&& let Mapping::Fn(value_fn)=e{
+    //            let value_fn = value_fn.clone();
+    //            let mut wildcard_url=url.clone();
+    //            wildcard_url.push_str("/{*wildcard}");
+    //            
+    //            function_wildcard.push((name.clone(),wildcard_url.clone()));
+    //            
+    //            app=app.route(&wildcard_url,value_fn());
+    //        }else{
+    //                function_base.push((name.clone(),url.clone()));
+    //        }
+    //            app=app.route(url,x());
+    //        }
+    //    }
+    //}
 }
-let mut root_string=String::from("
-Wildcard Redirects(base+wildcard):
+println!("{:?}{:?}{:?}",base_fn,base_redirects,is_some);
+//for i in redirect_wildcard{
+//    root_string.push_str(&format!("{:<width$}{}
+//",i.0,i.1,width = longest_name));
+//}
+//root_string.push_str("
+//Wildcard Functions(base+wildcard):
+//
+//");
+//for i in function_wildcard{
+//    root_string.push_str(&format!("{:<width$}{}
+//",i.0,i.1,width = longest_name));
+//}
+//root_string.push_str("
+//Base-Path Redirects:
+//
+//");
+//for i in redirect_base{
+//    root_string.push_str(&format!("{:<width$}{}
+//",i.0,i.1,width = longest_name));
+//}
+//root_string.push_str("
+//Base-Path Functions:
+//
+//");
+//for i in function_base{
+//    root_string.push_str(&format!("{:<width$}{}
+//",i.0,i.1,width = longest_name));
+//}
+app=app.route("/",get(String::from(&format!("
+Base Path is a function:
 
-");
-for i in redirect_wildcard{
-    root_string.push_str(&format!("{:<width$}{}
-",i.0,i.1,width = longest_name));
-}
-root_string.push_str("
-Wildcard Functions(base+wildcard):
+{}
 
-");
-for i in function_wildcard{
-    root_string.push_str(&format!("{:<width$}{}
-",i.0,i.1,width = longest_name));
-}
-root_string.push_str("
-Base-Path Redirects:
+Base Path is a redirect:
 
-");
-for i in redirect_base{
-    root_string.push_str(&format!("{:<width$}{}
-",i.0,i.1,width = longest_name));
-}
-root_string.push_str("
-Base-Path Functions:
-
-");
-for i in function_base{
-    root_string.push_str(&format!("{:<width$}{}
-",i.0,i.1,width = longest_name));
-}
-app=app.route("/",get(root_string));
+{}
+",
+&sort_urls(base_fn,longest_name,&is_some,&is_redirect).await,
+&sort_urls(base_redirects,longest_name,&is_some,&is_redirect).await))));
 
 
 //..
